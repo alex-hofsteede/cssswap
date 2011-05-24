@@ -1,3 +1,4 @@
+from urlparse import urlparse, urljoin
 from django.http import HttpResponse
 from django.shortcuts import render_to_response
 from models import Page, CSSAsset
@@ -22,7 +23,7 @@ def getpage(request):
         css_tags = soup.findAll("link",{"rel":re.compile("stylesheet",re.I)})
         css_assets = []
         for css_tag in css_tags:
-            css_url = css_tag['href']
+            css_url = urljoin(page_url,css_tag['href'])
             #TODO add domain to relative URLs
             f = urllib2.urlopen(css_url)
             css_content = f.read()
@@ -32,7 +33,7 @@ def getpage(request):
             css_asset.page = page
             css_asset.save()
             css_assets.append(css_asset)
-        return render_to_response('edit.html', {"styleshets":css_assets}, context_instance=RequestContext(request))
+        return render_to_response('edit.html', {"stylesheets":css_assets}, context_instance=RequestContext(request))
     return '' 
 
 def showpage(request,page_id):

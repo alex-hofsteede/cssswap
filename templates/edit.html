@@ -6,7 +6,7 @@
 <form name="input" action="/getpage" method="POST">
 {% csrf_token %}
 {% for stylesheet in stylesheets %}
-<input >{{stylesheet.url}}</input>
+<textarea >{{stylesheet.original}}</textarea>
 {% endfor %}
 <input name="submit" type="submit"/>
 </form>
