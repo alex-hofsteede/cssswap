@@ -1,0 +1,11 @@
+<html>
+<head>
+</head>
+<body>
+<h2>Enter a URL:</h2>
+<form name="input" action="/getpage" method="POST">
+{% csrf_token %}
+<input name="url"/>
+</form>
+</body>
+</html>

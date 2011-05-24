@@ -1,0 +1,14 @@
+<html>
+<head>
+</head>
+<body>
+<h2>Edit CSS</h2>
+<form name="input" action="/getpage" method="POST">
+{% csrf_token %}
+{% for stylesheet in stylesheets %}
+<input >{{stylesheet.url}}</input>
+{% endfor %}
+<input name="submit" type="submit"/>
+</form>
+</body>
+</html>
