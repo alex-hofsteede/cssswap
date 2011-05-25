@@ -16,6 +16,7 @@ urlpatterns = patterns('',
 
     url(r'^/?$', swap.views.index),
     url(r'^getpage/?$', swap.views.getpage),
+    url(r'^savepage/(?P<page_id>\d+)/?', swap.views.savepage),
     url(r'^showpage/(?P<page_id>\d+)/?', swap.views.showpage),
     # Uncomment the next line to enable the admin:
     # url(r'^admin/', include(admin.site.urls)),
