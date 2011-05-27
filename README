@@ -1,0 +1,5 @@
+To set up you'll need python 2.6 and django 1.2.x
+
+- grab the repo
+- python manage.py runserver
+- visit localhost:8000
