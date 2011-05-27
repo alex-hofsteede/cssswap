@@ -37,10 +37,14 @@ def getpage(request):
         page.url = page_url
         page.original = page_content
         page.save()
-        #TODO add domain to relative URLs in href and src
+        #TODO urljoin domain to relative URLs in all href and src attributes on img and a tags
+        # as well as in any url() statements within CSS
         soup = BeautifulSoup(page_content)
-        css_link_tags = soup.findAll("link",{'rel':re.compile('stylesheet',re.I)})
         css_assets = []
+
+        #Grabs any <link> tags that point to stylesheets, downloads and saves the 
+        #linked stylesheet, and replaces the link with our own custom link
+        css_link_tags = soup.findAll("link",{'rel':re.compile('stylesheet',re.I)})
         for css_link_tag in css_link_tags:
             css_url = urljoin(page_url,css_link_tag['href'])
             try:
@@ -52,6 +56,8 @@ def getpage(request):
             css_assets.append(css_asset)
             css_link_tag['href'] = '/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
 
+        #Grabs any <style> tags and saves the CSS therein. replaces with a
+        #uuid that we can then regex out later and replace with modified css
         css_style_tags = soup.findAll('style')
         for css_style_tag in css_style_tags:
             css_content = css_style_tag.string #TODO check that this is indeed a single string 
@@ -59,6 +65,8 @@ def getpage(request):
             css_assets.append(css_asset)
             css_style_tag.string.replaceWith( delimiter + css_asset.uuid + delimiter )
 
+        #Grabs any style="" attributes on normal html tags and saves the CSS therein.
+        #replace with uuid, same as above
         css_inline_style_tags = soup.findAll(style=True)
         for css_inline_style_tag in css_inline_style_tags:
             css_content = css_inline_style_tag['style']
@@ -76,6 +84,7 @@ def getCSS(request,uuid):
     css = get_object_or_404(CSSAsset,uuid=uuid)
     return HttpResponse(css.raw)
 
+#TODO protect with token in cookie (that gets generated in getpage). Don't want to allow anyone to edit pages, only the person that originally got it
 def editpage(request,page_id):
     page = Page.objects.get(pk=page_id) #TODO use uuids
     stylesheets = CSSAsset.objects.filter(page=page.id)
@@ -98,7 +107,7 @@ def savepage(request,page_id):
     return redirect("/showpage/%s" % page_id)
 
 def showpage(request,page_id):
-    page = Page.objects.get(pk=page_id) #TODO check for error 
+    page = get_object_or_404(Page,pk=page_id)
     def replacementText(match):
         return getCSSByUUID(match.group(1)).raw
     html = re.sub(delimiter+r'([0-f]+)'+delimiter,replacementText,page.raw)
