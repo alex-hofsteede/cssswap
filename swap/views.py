@@ -9,19 +9,14 @@ import util
 def index(request):
     return render_to_response('index.html',{}, context_instance=RequestContext(request))
 
-def createCSSAsset(content,page,url=''):
-    css_asset = CSSAsset.create()
-    css_asset.url = url
-    css_asset.original = content
-    css_asset.raw = content
-    css_asset.page = page
-    css_asset.save()
-    return css_asset 
 
 def getpage(request):
     if request.method == 'POST':
         page_url = request.POST['url']
-        page = util.processpage(page_url)
+        try:
+            page = util.processpage(page_url)
+        except urllib2.HTTPError, error:
+            return render_to_response('error.html',{'message':error.code}) 
         if page != None:
             return redirect("/editpage/%d" % page.id)
     return HttpResponse('fail')#TODO return something good 
