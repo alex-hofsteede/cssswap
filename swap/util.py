@@ -102,7 +102,10 @@ def parseNestedStylesheets(css_asset, css_assets, page):
     #variable amount of whitespace. So group(1) is everything between the @import and the actual URL
     #and group(2) is the URL
     regex = re.compile(r'''(?<=@import)(\s+url\(\s*['"]?)([^'"()]+)(?=['"]?\))''',re.I)
-    def fetchAndCreateCSS(match):
+#This replacement function gets called on every match and downloads/parses the stylesheet 
+#at that location.
+#TODO we might want to do this asynchronously
+    def replace(match):
         css_url = match.group(2)
         try:
             f = urllib2.urlopen(css_url)
@@ -113,7 +116,7 @@ def parseNestedStylesheets(css_asset, css_assets, page):
         css_sub_asset = createCSSAsset(css_content, page, css_url)
         css_assets.append(css_sub_asset)
         return match.group(1) + '/css/%s' % css_sub_asset.uuid
-    css_asset.raw = regex.sub(fetchAndCreateCSS,css_asset.raw)
+    css_asset.raw = regex.sub(replace,css_asset.raw)
     css_asset.save()
 
 
