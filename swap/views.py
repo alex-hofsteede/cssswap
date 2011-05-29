@@ -5,6 +5,7 @@ from models import Page, CSSAsset
 from django.template import RequestContext
 import re
 import util
+import urllib2
 
 def index(request):
     return render_to_response('index.html',{}, context_instance=RequestContext(request))
@@ -14,7 +15,7 @@ def getpage(request):
     if request.method == 'POST':
         page_url = request.POST['url']
         try:
-            page = util.processpage(page_url)
+            page = util.processPage(page_url)
         except urllib2.HTTPError, error:
             return render_to_response('error.html',{'message':error.code}) 
         if page != None:
@@ -23,7 +24,7 @@ def getpage(request):
 
 def getCSS(request,uuid):
     css = get_object_or_404(CSSAsset,uuid=uuid)
-    return HttpResponse(css.raw)
+    return HttpResponse(css.raw,mimetype='text/css')
 
 #TODO protect with token in cookie (that gets generated in getpage). Don't want to allow anyone to edit pages, only the person that originally got it
 def editpage(request,page_id):
