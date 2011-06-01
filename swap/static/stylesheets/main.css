@@ -1,0 +1,8 @@
+#content {
+  margin: 10px;
+}
+
+#edit-css-form textarea {
+  width: 450px;
+  height: 400px;
+}

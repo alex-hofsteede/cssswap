@@ -1,14 +1,11 @@
-<html>
-<head>
-</head>
-<body>
+{% extends "base.html" %}
+{% block content %}
 <h2>Edit CSS</h2>
-<form name="input" action="/savepage/{{page.id}}" method="POST">
-{% csrf_token %}
-{% for stylesheet in stylesheets %}
-<textarea name="cssasset_{{stylesheet.uuid}}" >{{stylesheet.raw}}</textarea>
-{% endfor %}
-<input name="submit" type="submit"/>
+<form id="edit-css-form" name="input" action="/savepage/{{page.id}}" method="POST">
+  {% csrf_token %}
+  {% for stylesheet in stylesheets %}
+  <textarea name="cssasset_{{stylesheet.uuid}}" >{{stylesheet.raw}}</textarea>
+  {% endfor %}
+  <input name="submit" type="submit"/>
 </form>
-</body>
-</html>
+{% endblock %}
