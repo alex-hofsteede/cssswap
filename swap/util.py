@@ -6,12 +6,13 @@ import re
 
 delimiter = '--REPLACE--'
 
-def createCSSAsset(content,page,url=''):
+def createCSSAsset(content,page,url='',name=''):
     css_asset = CSSAsset.create()
     css_asset.url = url
     css_asset.original = content
     css_asset.raw = content
     css_asset.page = page
+    css_asset.name = name
     css_asset.save()
     return css_asset 
 
@@ -61,9 +62,13 @@ def parseStyleAttributes(soup, css_assets, page):
     css_inline_style_tags = soup.findAll(style=True)
     for css_inline_style_tag in css_inline_style_tags:
         css_content = css_inline_style_tag['style']
-        css_asset = createCSSAsset(css_content,page)
-        css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
-        css_inline_style_tag['style'] =  delimiter + css_asset.uuid + delimiter 
+        if css_content:
+            css_name = css_inline_style_tag["id"]
+            if not css_name:
+                css_name = 'inline'
+            css_asset = createCSSAsset(css_content, page, name=css_name)
+            css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
+            css_inline_style_tag['style'] =  delimiter + css_asset.uuid + delimiter 
 
 
 def parseStyleTags(soup, css_assets, page):
@@ -72,7 +77,7 @@ def parseStyleTags(soup, css_assets, page):
     css_style_tags = soup.findAll('style')
     for css_style_tag in css_style_tags:
         css_content = css_style_tag.string #TODO check that this is indeed a single string 
-        css_content = makeCSSURLsAbsolute(css_content,css_url)
+        css_content = makeCSSURLsAbsolute(css_content,page.url)
         css_asset = createCSSAsset(css_content,page)
         css_assets.append(css_asset)
         css_style_tag.string.replaceWith( delimiter + css_asset.uuid + delimiter )
@@ -85,13 +90,14 @@ def parseLinkedStylesheets(soup, css_assets, page):
     css_link_tags = soup.findAll("link",{'rel':re.compile('stylesheet',re.I)})
     for css_link_tag in css_link_tags:
         css_url = css_link_tag['href']
+        css_name = urlparse(css_url).path 
         try:
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
             continue
         css_content = f.read()
-        css_content = makeCSSURLsAbsolute(css_content,css_url)
-        css_asset = createCSSAsset(css_content,page,css_url)
+        css_content = makeCSSURLsAbsolute(css_content, css_url)
+        css_asset = createCSSAsset(css_content,i page, css_url, css_name)
         css_assets.append(css_asset)
         css_link_tag['href'] = '/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
         parseNestedStylesheets(css_asset, css_assets, page)

@@ -6,7 +6,7 @@
   <div id="edit-tabs">
     <ul>
       {% for stylesheet in stylesheets %}
-      <li><a href="#tabs-{{stylesheet.id}}">Style {{stylesheet.id}}</a></li>
+      <li><a href="#tabs-{{stylesheet.id}}">{{stylesheet.name}}</a></li>
       {% endfor %}
     </ul>
     {% for stylesheet in stylesheets %}
