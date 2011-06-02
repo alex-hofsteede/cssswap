@@ -1,14 +1,19 @@
 $(function() {
-  console.log('load');
-  $( "#edit-tabs" ).tabs();
-  $('#edit-tabs textarea').each(
-    function() {
-    console.log(this);
-    console.log('test');
-    CodeMirror.fromTextArea(this);
-  }
-  );
-  /*
-   *var myCodeMirror = CodeMirror.fromTextArea($('#edit-tabs textarea')[0]);
-   */
+  window.editors = [];
+
+  $( "#edit-tabs" ).tabs({
+    show: function(event,ui) {
+      if($(ui.panel).find('.CodeMirror').length == 0) {
+        var editor = CodeMirror.fromTextArea($(ui.panel).find('textarea')[0])
+        window.editors.push(editor);
+      }
+    }
+  });
+
+  $('#edit-css-form').submit(function() {
+    _.each(window.editors, function(editor) {
+      console.log('saving');
+      editor.save();
+    });
+  });
 });
