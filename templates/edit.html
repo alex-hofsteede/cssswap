@@ -3,9 +3,18 @@
 <h2>Edit CSS</h2>
 <form id="edit-css-form" name="input" action="/savepage/{{page.id}}" method="POST">
   {% csrf_token %}
-  {% for stylesheet in stylesheets %}
-  <textarea name="cssasset_{{stylesheet.uuid}}" >{{stylesheet.raw}}</textarea>
-  {% endfor %}
-  <input name="submit" type="submit"/>
+  <div id="edit-tabs">
+    <ul>
+      {% for stylesheet in stylesheets %}
+      <li><a href="#tabs-{{stylesheet.id}}">Style {{stylesheet.id}}</a></li>
+      {% endfor %}
+    </ul>
+    {% for stylesheet in stylesheets %}
+    <div id="tabs-{{stylesheet.id}}">
+      <textarea name="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
+    </div>
+    {% endfor %}
+  </div>
+  <input name="submit" value="Save" type="submit"></input>
 </form>
 {% endblock %}

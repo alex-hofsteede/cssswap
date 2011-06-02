@@ -2,3 +2,5 @@
 *.swp
 changeauthor
 .gitignore
+.DS_Store
+.*.swp

@@ -3,6 +3,11 @@
 }
 
 #edit-css-form textarea {
-  width: 450px;
-  height: 400px;
+  width: 100%;
+  height: 600px;
+}
+
+#edit-tabs ul,
+#edit-tabs textarea {
+  font-size: 12px;
 }

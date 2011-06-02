@@ -3,8 +3,9 @@
   <head>
     <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}stylesheets/reset.css" />
     <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}stylesheets/main.css" />
-    <link rel="styleseeet" type="text/css" href="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js
-    " />
+    <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}stylesheets/skin/jquery-ui-1.8.13.custom.css" />
+    <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}stylesheets/codemirror.css" />
+    <link rel="stylesheet" type="text/css" href="{{STATIC_URL}}javascripts/css/css.css" />
   </head>
   <title>CssWrap</title>
   <body>
@@ -12,5 +13,10 @@
       {% block content %}{% endblock %}
     </div>
     <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.1/jquery.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="{{STATIC_URL}}javascripts/jquery-ui-1.8.13.custom.min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="{{STATIC_URL}}javascripts/codemirror.js" charset="utf-8"></script>
+    <script type="text/javascript" src="{{STATIC_URL}}javascripts/underscore-min.js" charset="utf-8"></script>
+    <script type="text/javascript" src="{{STATIC_URL}}javascripts/css/css.js" charset="utf-8"></script>
+    <script type="text/javascript" src="{{STATIC_URL}}javascripts/edit.js" charset="utf-8"></script>
   </body>
 </html>
