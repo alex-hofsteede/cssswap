@@ -65,7 +65,7 @@ def parseStyleAttributes(soup, css_assets, page):
         if css_content:
             css_name = css_inline_style_tag["id"]
             if not css_name:
-                css_name = 'inline'
+                css_name = 'style=""'
             css_asset = createCSSAsset(css_content, page, name=css_name)
             css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
             css_inline_style_tag['style'] =  delimiter + css_asset.uuid + delimiter 
@@ -78,7 +78,7 @@ def parseStyleTags(soup, css_assets, page):
     for css_style_tag in css_style_tags:
         css_content = css_style_tag.string #TODO check that this is indeed a single string 
         css_content = makeCSSURLsAbsolute(css_content,page.url)
-        css_asset = createCSSAsset(css_content,page)
+        css_asset = createCSSAsset(css_content, page, name='<style/>')
         css_assets.append(css_asset)
         css_style_tag.string.replaceWith( delimiter + css_asset.uuid + delimiter )
         parseNestedStylesheets(css_asset, css_assets, page)
