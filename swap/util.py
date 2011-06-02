@@ -63,8 +63,9 @@ def parseStyleAttributes(soup, css_assets, page):
     for css_inline_style_tag in css_inline_style_tags:
         css_content = css_inline_style_tag['style']
         if css_content:
-            css_name = css_inline_style_tag["id"]
-            if not css_name:
+            try:
+                css_name = '#'+css_inline_style_tag["id"]
+            except:
                 css_name = 'style=""'
             css_asset = createCSSAsset(css_content, page, name=css_name)
             css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
@@ -97,7 +98,7 @@ def parseLinkedStylesheets(soup, css_assets, page):
             continue
         css_content = f.read()
         css_content = makeCSSURLsAbsolute(css_content, css_url)
-        css_asset = createCSSAsset(css_content,i page, css_url, css_name)
+        css_asset = createCSSAsset(css_content, page, css_url, css_name)
         css_assets.append(css_asset)
         css_link_tag['href'] = '/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
         parseNestedStylesheets(css_asset, css_assets, page)
@@ -113,13 +114,14 @@ def parseNestedStylesheets(css_asset, css_assets, page):
 #TODO we might want to do this asynchronously
     def replace(match):
         css_url = match.group(2)
+        css_name = urlparse(css_url).path 
         try:
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
             return match.group(0)
         css_content = f.read()
         css_content = makeCSSURLsAbsolute(css_content,css_url)
-        css_sub_asset = createCSSAsset(css_content, page, css_url)
+        css_sub_asset = createCSSAsset(css_content, page, css_url, css_name)
         css_assets.append(css_sub_asset)
         return match.group(1) + '/css/%s' % css_sub_asset.uuid
     css_asset.raw = regex.sub(replace,css_asset.raw)
