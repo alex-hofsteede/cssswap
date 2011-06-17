@@ -1,8 +1,9 @@
 from urlparse import urlparse, urljoin
 from BeautifulSoup import BeautifulSoup, ICantBelieveItsBeautifulSoup, MinimalSoup, BeautifulStoneSoup
 import urllib2
-from models import Page, CSSAsset
+from models import Page, CSSAsset, CachedPage
 import re
+from datetime import datetime
 
 delimiter = '--REPLACE--'
 
@@ -34,11 +35,27 @@ def processPage(page_url):
         parsed = urlparse(page_url)
         if parsed.scheme == '':
             page_url = 'http://'+page_url
-        f =  urllib2.urlopen(page_url) #TODO rate limit this or find some way to stop ourselves from being used as a DOS tool
-    except urllib2.HTTPError, error:
-        raise error
+    except:
         return None
-    page_content = f.read()
+    try:
+        cached_page = CachedPage.objects.get(url=page_url)
+        page_content = cached_page.original
+        #print "fetched cached page %d" % cached_page.id
+    except: #TODO what is the error we are catching? Not Found?
+        try:
+            #Check if urlparse can find a scheme for us, if not, we just put http:// in front
+            f =  urllib2.urlopen(page_url) #TODO rate limit this or find some way to stop ourselves from being used as a DOS tool
+            page_content = f.read()
+            #Create a cached page that we can fetch by URL later
+            cached_page = CachedPage()
+            cached_page.url = page_url
+            cached_page.original = page_content
+            cached_page.date = datetime.now()
+            cached_page.save()
+            #print "saved cached page %d" % cached_page.id
+        except urllib2.HTTPError, error:
+            raise error
+            return None
     page = Page.create()
     page.url = page_url
     page.original = page_content
