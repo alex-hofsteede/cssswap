@@ -4,6 +4,7 @@ import urllib2
 from models import Page, CSSAsset, CachedPage
 import re
 from datetime import datetime
+import lexer
 
 delimiter = '--REPLACE--'
 
@@ -21,6 +22,12 @@ def makeLinksAbsolute(soup, attr, root_url):
     link_tags = soup.findAll(attrs={attr:True})
     for link_tag in link_tags:
         link_tag[attr] = urljoin(root_url,link_tag[attr]) 
+
+def makeLinksAbsolute2(tags, attr, root_url):
+    re = lexer.collector.res['AttValSE']
+    for tag in tags:
+        attr = re.find(tag)
+        print attr
 
 def makeCSSURLsAbsolute(css_content,root_url):
     regex = re.compile('''\surl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
@@ -60,6 +67,11 @@ def processPage(page_url):
     page.url = page_url
     page.original = page_content
     page.save()
+#an attempt at lexing the XML instead of a full beautifulsoup parse
+    tags = lexer.lexxml(page_content)
+    makeLinksAbsolute2(tags,'href', page_url)
+
+
     soup = MinimalSoup(page_content)
     css_assets = []
     makeLinksAbsolute(soup, 'href', page_url)
@@ -113,6 +125,7 @@ def parseLinkedStylesheets(soup, css_assets, page):
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
             continue
+        #TODO other exceptions to handle here, like connection refused. 
         css_content = f.read()
         css_content = makeCSSURLsAbsolute(css_content, css_url)
         css_asset = createCSSAsset(css_content, page, css_url, css_name)
