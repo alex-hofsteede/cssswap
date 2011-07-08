@@ -4,7 +4,10 @@ import urllib2
 from models import Page, CSSAsset, CachedPage
 import re
 from datetime import datetime
-import lexer
+
+from pygments.lexers import HtmlLexer
+from pygments.token import Token, Text, Comment, Operator, Keyword, Name, String, \
+     Number, Other, Punctuation, Literal
 
 delimiter = '--REPLACE--'
 
@@ -18,16 +21,18 @@ def createCSSAsset(content,page,url='',name=''):
     css_asset.save()
     return css_asset 
 
-def makeLinksAbsolute(soup, attr, root_url):
-    link_tags = soup.findAll(attrs={attr:True})
-    for link_tag in link_tags:
-        link_tag[attr] = urljoin(root_url,link_tag[attr]) 
-
-def makeLinksAbsolute2(tags, attr, root_url):
-    re = lexer.collector.res['AttValSE']
-    for tag in tags:
-        attr = re.find(tag)
-        print attr
+def makeLinksAbsolute(document, attrs, root_url):
+    if type(attrs) is str:
+        attrs = [attrs]
+    attr_regex = re.compile('|'.join(attrs)+r'\s*=',re.I)
+    output_tokens = []
+    tokens = HtmlLexer().get_tokens_unprocessed(document)
+    for index,token,value in tokens:
+        output_tokens.append(value)
+        if token == Token.Name.Attribute and attr_regex.match(value):
+            index,token,value = tokens.next() # get the attribute value
+            output_tokens.append('"'+urljoin(root_url,value.strip("\"' "))+'"')
+    return "".join(output_tokens)
 
 def makeCSSURLsAbsolute(css_content,root_url):
     regex = re.compile('''\surl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
@@ -67,51 +72,69 @@ def processPage(page_url):
     page.url = page_url
     page.original = page_content
     page.save()
-#an attempt at lexing the XML instead of a full beautifulsoup parse
-    tags = lexer.lexxml(page_content)
-    makeLinksAbsolute2(tags,'href', page_url)
+    css_assets = []
 
+    print page_content
+    page_content = makeLinksAbsolute(page_content,['href','src'], page_url)
+    page_content = parseStyleAttributes(page_content, css_assets, page)
+    page_content = parseStyleTags(page_content, css_assets, page)
+    print page_content
 
     soup = MinimalSoup(page_content)
-    css_assets = []
-    makeLinksAbsolute(soup, 'href', page_url)
-    makeLinksAbsolute(soup, 'src', page_url)
     parseLinkedStylesheets(soup, css_assets, page)
-    parseStyleTags(soup, css_assets, page)
-    parseStyleAttributes(soup, css_assets, page)
+#    parseStyleAttributes(soup, css_assets, page)
     
     #save all the replacements to the page
     page.raw = unicode(soup)
     page.save()
     return page
 
-def parseStyleAttributes(soup, css_assets, page):
+def parseStyleAttributes(document, css_assets, page):
     #Grabs any style="" attributes on normal html tags and saves the CSS therein.
     #replace with uuid, same as above
-    css_inline_style_tags = soup.findAll(style=True)
-    for css_inline_style_tag in css_inline_style_tags:
-        css_content = css_inline_style_tag['style']
-        if css_content:
-            try:
-                css_name = '#'+css_inline_style_tag["id"]
-            except:
-                css_name = 'style=""'
+    attr_regex = re.compile(r'style\s*=',re.I)
+    output_tokens = []
+    tokens = HtmlLexer().get_tokens_unprocessed(document)
+    for index,token,value in tokens:
+        output_tokens.append(value)
+        if token == Token.Name.Attribute and attr_regex.match(value):
+            index,token,value = tokens.next() # get the attribute value
+            css_content = value.strip("\"' ")
+            css_name = 'style=""'#TODO get the ID attribute from the same tag (could be difficult)
             css_asset = createCSSAsset(css_content, page, name=css_name)
             css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
-            css_inline_style_tag['style'] =  delimiter + css_asset.uuid + delimiter 
+            output_tokens.append('"' + delimiter + css_asset.uuid + delimiter + '"')
+    return "".join(output_tokens)
 
-
-def parseStyleTags(soup, css_assets, page):
+def parseStyleTags(document, css_assets, page):
     #Grabs any <style> tags and saves the CSS therein. replaces with a
     #uuid that we can then regex out later and replace with modified css
-    css_style_tags = soup.findAll('style')
-    for css_style_tag in css_style_tags:
-        css_content = css_style_tag.string #TODO check that this is indeed a single string 
-        css_content = makeCSSURLsAbsolute(css_content,page.url)
-        css_asset = createCSSAsset(css_content, page, name='<style/>')
-        css_assets.append(css_asset)
-        css_style_tag.string.replaceWith( delimiter + css_asset.uuid + delimiter )
-        parseNestedStylesheets(css_asset, css_assets, page)
+    output_tokens = []
+    tokens = HtmlLexer().get_tokens_unprocessed(document)
+    intag = False
+    instyle = False
+    for index,token,value in tokens:
+        if not instyle:
+            output_tokens.append(value)
+
+        if not intag and token == Token.Name.Tag and re.match(r'<\s*style\s*',value):
+            intag = True
+        elif intag and token == Token.Name.Tag and re.match(r'/?\s*>',value):
+            intag = False
+            instyle = True
+            stylesheet_tokens = []
+        elif instyle and token == Token.Name.Tag and re.match(r'<\s*/\s*style\s*>',value):
+            instyle = False
+            css_content = "".join(stylesheet_tokens) 
+            css_content = makeCSSURLsAbsolute(css_content,page.url)
+            css_asset = createCSSAsset(css_content, page, name='<style/>')
+            css_assets.append(css_asset)
+            parseNestedStylesheets(css_asset, css_assets, page)
+            output_tokens.append( delimiter + css_asset.uuid + delimiter )
+            output_tokens.append(value)
+        elif instyle:
+            stylesheet_tokens.append(value)
+    return "".join(output_tokens)
 
 
 def parseLinkedStylesheets(soup, css_assets, page):
@@ -139,9 +162,9 @@ def parseNestedStylesheets(css_asset, css_assets, page):
     #variable amount of whitespace. So group(1) is everything between the @import and the actual URL
     #and group(2) is the URL
     regex = re.compile(r'''(?<=@import)(\s+url\(\s*['"]?)([^'"()]+)(?=['"]?\))''',re.I)
-#This replacement function gets called on every match and downloads/parses the stylesheet 
-#at that location.
-#TODO we might want to do this asynchronously
+    #This replacement function gets called on every match and downloads/parses the stylesheet 
+    #at that location.
+    #TODO we might want to do this asynchronously
     def replace(match):
         css_url = match.group(2)
         css_name = urlparse(css_url).path 
