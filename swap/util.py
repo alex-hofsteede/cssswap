@@ -32,13 +32,13 @@ def makeLinksAbsolute(document, attrs, root_url):
         if token == Token.Name.Attribute and attr_regex.match(value):
             index,token,value = tokens.next() # get the attribute value
             output_tokens.append('"'+urljoin(root_url,value.strip("\"' "))+'"')
-    return "".join(output_tokens)
+    return u''.join(output_tokens)
 
 def makeCSSURLsAbsolute(css_content,root_url):
     regex = re.compile('''\surl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
     def replace(match):
         print "matched %s : making absolute" % match.group(0)
-        return ' url("'+urljoin(root_url,match.group(1))+'")'
+        return u' url("' + unicode(urljoin(root_url,match.group(1))) + u'")'
     return regex.sub(replace,css_content)
 
 def processPage(page_url):
@@ -46,7 +46,7 @@ def processPage(page_url):
         #Check if urlparse can find a scheme for us, if not, we just put http:// in front
         parsed = urlparse(page_url)
         if parsed.scheme == '':
-            page_url = 'http://'+page_url
+            page_url = u'http://'+ unicode(page_url)
     except:
         return None
     try:
@@ -57,7 +57,7 @@ def processPage(page_url):
         try:
             #Check if urlparse can find a scheme for us, if not, we just put http:// in front
             f =  urllib2.urlopen(page_url) #TODO rate limit this or find some way to stop ourselves from being used as a DOS tool
-            page_content = f.read()
+            page_content = unicode(f.read())
             #Create a cached page that we can fetch by URL later
             cached_page = CachedPage()
             cached_page.url = page_url
@@ -75,19 +75,37 @@ def processPage(page_url):
     css_assets = []
 
     print page_content
-    page_content = makeLinksAbsolute(page_content,['href','src'], page_url)
+    page_content = makeLinksAbsolute(page_content,[u'href',u'src'], page_url)
     page_content = parseStyleAttributes(page_content, css_assets, page)
     page_content = parseStyleTags(page_content, css_assets, page)
+    page_content = parseLinkedStylesheets(page_content, css_assets, page)
     print page_content
 
-    soup = MinimalSoup(page_content)
-    parseLinkedStylesheets(soup, css_assets, page)
-#    parseStyleAttributes(soup, css_assets, page)
-    
     #save all the replacements to the page
-    page.raw = unicode(soup)
+    page.raw = page_content
     page.save()
     return page
+
+def parseTagAttributes(tokens):
+    attr_dict = {}
+    attr_regex = re.compile(r'([a-zA-Z0-9_:-]+)(\s*=)?')
+    end_regex = re.compile(r'(/?\s*>)')
+    for index,token,value in tokens:
+        if token == Token.Name.Attribute :
+            attr_match = attr_regex.match(value)
+            if attr_match.group(2):
+                index,token,value = tokens.next() # get the attribute value
+                attr_dict[attr_match.group(1).lower()] = value.strip("\"' ")
+            else:
+                attr_dict[attr_match.group(1).lower()] = None
+        elif token != Token.Name.Attribute:
+            close_match = end_regex.match(value)
+            if close_match:
+                return (attr_dict,close_match.group(1))
+
+def serializeTagAttributes(attr_dict):
+    #TODO is there a way to join with a separator on the beginning and end?
+    return " " + " ".join(k + (('="' + v + '"') if v != None else '') for k,v in attr_dict.iteritems()) + " " 
 
 def parseStyleAttributes(document, css_assets, page):
     #Grabs any style="" attributes on normal html tags and saves the CSS therein.
@@ -119,7 +137,7 @@ def parseStyleTags(document, css_assets, page):
 
         if not intag and token == Token.Name.Tag and re.match(r'<\s*style\s*',value):
             intag = True
-        elif intag and token == Token.Name.Tag and re.match(r'/?\s*>',value):
+        elif intag and token == Token.Name.Tag and re.match(r'\s*>',value):
             intag = False
             instyle = True
             stylesheet_tokens = []
@@ -137,19 +155,46 @@ def parseStyleTags(document, css_assets, page):
     return "".join(output_tokens)
 
 
-def parseLinkedStylesheets(soup, css_assets, page):
+def parseLinkedStylesheets(document, css_assets, page):
     #Grabs any <link> tags that point to stylesheets, downloads and saves the 
     #linked stylesheet, and replaces the link with our own custom link
+    output_tokens = []
+    tokens = HtmlLexer().get_tokens_unprocessed(document)
+    tag_regex = re.compile(r'<\s*link',re.I)
+    for index,token,value in tokens:
+        output_tokens.append(value)
+        if token == Token.Name.Tag and tag_regex.match(value):
+            attr_dict,close_tag = parseTagAttributes(tokens)
+            if 'href' in attr_dict and attr_dict['href'] and 'rel' in attr_dict and attr_dict['rel'] and attr_dict['rel'].lower() == 'stylesheet':
+                css_url = attr_dict['href']
+                css_name = urlparse(css_url).path 
+                try:
+                    f = urllib2.urlopen(css_url)
+                except urllib2.HTTPError, error:
+                    continue
+                #TODO other exceptions to handle here, like connection refused. 
+                css_content = unicode(f.read(),'utf-8')
+                css_content = makeCSSURLsAbsolute(css_content, css_url)
+                css_asset = createCSSAsset(css_content, page, css_url, css_name)
+                css_assets.append(css_asset)
+                attr_dict['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
+                parseNestedStylesheets(css_asset, css_assets, page)
+                output_tokens.append(serializeTagAttributes(attr_dict))
+                output_tokens.append(close_tag)
+    return "".join(output_tokens)
+
+
+def parseLinkedStylesheetsOld(soup,css_assets,page):
     css_link_tags = soup.findAll("link",{'rel':re.compile('stylesheet',re.I)})
     for css_link_tag in css_link_tags:
-        css_url = css_link_tag['href']
+        css_url = unicode(css_link_tag['href'])
         css_name = urlparse(css_url).path 
         try:
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
             continue
         #TODO other exceptions to handle here, like connection refused. 
-        css_content = f.read()
+        css_content = unicode(f.read())
         css_content = makeCSSURLsAbsolute(css_content, css_url)
         css_asset = createCSSAsset(css_content, page, css_url, css_name)
         css_assets.append(css_asset)
@@ -172,11 +217,11 @@ def parseNestedStylesheets(css_asset, css_assets, page):
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
             return match.group(0)
-        css_content = f.read()
+        css_content = unicode(f.read())
         css_content = makeCSSURLsAbsolute(css_content,css_url)
         css_sub_asset = createCSSAsset(css_content, page, css_url, css_name)
         css_assets.append(css_sub_asset)
-        return match.group(1) + '/css/%s' % css_sub_asset.uuid
+        return match.group(1) + u'/css/%s' % css_sub_asset.uuid
     css_asset.raw = regex.sub(replace,css_asset.raw)
     css_asset.save()
 
