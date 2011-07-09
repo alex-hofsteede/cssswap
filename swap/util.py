@@ -35,9 +35,9 @@ def makeLinksAbsolute(document, attrs, root_url):
     return u''.join(output_tokens)
 
 def makeCSSURLsAbsolute(css_content,root_url):
-    regex = re.compile('''\surl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
+    regex = re.compile('''\\burl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
     def replace(match):
-        print "matched %s : making absolute" % match.group(0)
+        #print "matched %s : making absolute" % match.group(0)
         return u' url("' + unicode(urljoin(root_url,match.group(1))) + u'")'
     return regex.sub(replace,css_content)
 
@@ -57,7 +57,7 @@ def processPage(page_url):
         try:
             #Check if urlparse can find a scheme for us, if not, we just put http:// in front
             f =  urllib2.urlopen(page_url) #TODO rate limit this or find some way to stop ourselves from being used as a DOS tool
-            page_content = unicode(f.read())
+            page_content = unicode(f.read(),'utf-8')
             #Create a cached page that we can fetch by URL later
             cached_page = CachedPage()
             cached_page.url = page_url
@@ -74,12 +74,12 @@ def processPage(page_url):
     page.save()
     css_assets = []
 
-    print page_content
+    #print page_content
     page_content = makeLinksAbsolute(page_content,[u'href',u'src'], page_url)
     page_content = parseStyleAttributes(page_content, css_assets, page)
     page_content = parseStyleTags(page_content, css_assets, page)
     page_content = parseLinkedStylesheets(page_content, css_assets, page)
-    print page_content
+    #print page_content
 
     #save all the replacements to the page
     page.raw = page_content
@@ -179,8 +179,8 @@ def parseLinkedStylesheets(document, css_assets, page):
                 css_assets.append(css_asset)
                 attr_dict['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
                 parseNestedStylesheets(css_asset, css_assets, page)
-                output_tokens.append(serializeTagAttributes(attr_dict))
-                output_tokens.append(close_tag)
+            output_tokens.append(serializeTagAttributes(attr_dict))
+            output_tokens.append(close_tag)
     return "".join(output_tokens)
 
 
