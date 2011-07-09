@@ -5,3 +5,4 @@ changeauthor
 .DS_Store
 .*.swp
 pygments/
+swap.db
