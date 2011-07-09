@@ -7,3 +7,20 @@ span.css-important {color: #00F;}
 span.css-colorcode {color: #299;}
 span.css-comment {color: #A70;}
 span.css-string {color: #A22;}
+
+body{
+    font-family:sans-serif;
+}
+.urlEntryBox{
+    width:200px;
+    height:100px;
+    /*background-color:#CCCCCC;
+    margin: 0 auto;*/
+    position:relative;
+    top:200px;
+    left:200px;
+}
+.urlEntryBox > h2{
+    font-size:20px;
+    margin-bottom:20px;
+}

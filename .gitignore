@@ -4,3 +4,4 @@ changeauthor
 .gitignore
 .DS_Store
 .*.swp
+pygments/
