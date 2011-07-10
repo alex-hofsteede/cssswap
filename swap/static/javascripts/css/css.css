@@ -12,7 +12,7 @@ body{
     font-family:sans-serif;
 }
 .urlEntryBox{
-    width:200px;
+    width:450px;
     height:100px;
     /*background-color:#CCCCCC;
     margin: 0 auto;*/
@@ -20,6 +20,13 @@ body{
     top:200px;
     left:200px;
 }
+
+.urlEntryBox #url{
+    width:400px;
+    height:30px;
+    font-size:20pt;        
+}
+
 .urlEntryBox > h2{
     font-size:20px;
     margin-bottom:20px;
