@@ -35,10 +35,11 @@ def makeLinksAbsolute(document, attrs, root_url):
     return u''.join(output_tokens)
 
 def makeCSSURLsAbsolute(css_content,root_url):
-    regex = re.compile('''\\burl\(\s*['"]?([^'"()]+)['"]?\s*\)''',re.I)
+    regex = re.compile(r'''((?:@import\s+(?:url\(?)?|\burl\()\s*['"]?)((?:[^'"()\\]|\\.)*)(['"]?\s*\)?)''',re.I)
+    #regex = re.compile(r'''\burl\(\s*['"]?((?:[^'"()\\]|\\.)*)['"]?\s*\)''',re.I)
     def replace(match):
         #print "matched %s : making absolute" % match.group(0)
-        return u' url("' + unicode(urljoin(root_url,match.group(1))) + u'")'
+        return match.group(1) + unicode(urljoin(root_url,match.group(2))) + match.group(3)
     return regex.sub(replace,css_content)
 
 def processPage(page_url):
@@ -184,29 +185,13 @@ def parseLinkedStylesheets(document, css_assets, page):
     return "".join(output_tokens)
 
 
-def parseLinkedStylesheetsOld(soup,css_assets,page):
-    css_link_tags = soup.findAll("link",{'rel':re.compile('stylesheet',re.I)})
-    for css_link_tag in css_link_tags:
-        css_url = unicode(css_link_tag['href'])
-        css_name = urlparse(css_url).path 
-        try:
-            f = urllib2.urlopen(css_url)
-        except urllib2.HTTPError, error:
-            continue
-        #TODO other exceptions to handle here, like connection refused. 
-        css_content = unicode(f.read())
-        css_content = makeCSSURLsAbsolute(css_content, css_url)
-        css_asset = createCSSAsset(css_content, page, css_url, css_name)
-        css_assets.append(css_asset)
-        css_link_tag['href'] = '/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
-        parseNestedStylesheets(css_asset, css_assets, page)
 
 def parseNestedStylesheets(css_asset, css_assets, page):
     #Ideally we would have had just 1 group matching the URL, with everything else in lookaheads
     # and lookbehinds, unfortunately the lookbehind has to be fixed width and we are matching a
     #variable amount of whitespace. So group(1) is everything between the @import and the actual URL
-    #and group(2) is the URL
-    regex = re.compile(r'''(?<=@import)(\s+url\(\s*['"]?)([^'"()]+)(?=['"]?\))''',re.I)
+    #and group(2) is the URL, and group(3) is any trailing characers
+    regex = re.compile(r'''(?<=@import)(\s+(?:url)?\(?\s*['"]?)((?:[^'"()\\]|\\.)*)(['"]?\s*\)?)''',re.I)
     #This replacement function gets called on every match and downloads/parses the stylesheet 
     #at that location.
     #TODO we might want to do this asynchronously
@@ -221,7 +206,7 @@ def parseNestedStylesheets(css_asset, css_assets, page):
         css_content = makeCSSURLsAbsolute(css_content,css_url)
         css_sub_asset = createCSSAsset(css_content, page, css_url, css_name)
         css_assets.append(css_sub_asset)
-        return match.group(1) + u'/css/%s' % css_sub_asset.uuid
+        return match.group(1) + u'/css/%s' % css_sub_asset.uuid + match.group(3)
     css_asset.raw = regex.sub(replace,css_asset.raw)
     css_asset.save()
 
