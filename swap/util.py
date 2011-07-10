@@ -1,3 +1,11 @@
+"""
+This is an updated version of the HTML parsing logic that uses a simple HTML Lexer (tokenizer) to step through the
+HTML and make all the modifications we need. The plus side is we don't have a full blown parser that makes all kinds
+of changes to our HTML (closing tags etc.) that we don't want. We only alter the parts that we need, and everything
+else is untouched. The bad part is, we have to make numerous passes through the HTML to get all the info we need, so
+this will be a lot slower 
+"""
+
 from urlparse import urlparse, urljoin
 from BeautifulSoup import BeautifulSoup, ICantBelieveItsBeautifulSoup, MinimalSoup, BeautifulStoneSoup
 import urllib2
