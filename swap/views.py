@@ -43,7 +43,9 @@ def savepage(request,page_id):
             match = re.search(r'cssasset_([0-f]+)',key)
             if match:
                 css_asset = getCSSByUUID(match.group(1))
+#TODO check that a user can't just save over any CSS by knowing the uuid
                 if css_asset:
+                    value = util.scrubCSS(value)
                     css_asset.raw = value
                     css_asset.save()
     return redirect("/showpage/%s" % page_id)

@@ -144,4 +144,13 @@ def parseNestedStylesheets(css_asset, css_assets, page):
     css_asset.raw = regex.sub(replace,css_asset.raw)
     css_asset.save()
 
+def scrubCSS(css):
+    """
+    Makes sure CSS doesn't contain any strings that might allow us to get pwned. 
+    like closing the style and setting a script tag
+    """
+    regex = re.compile(r'<\s*/?')
+#TODO we should really just delete all content after an attempted pwn
+    return regex.sub('NO PWN, NO PWN, I JUST WANT TO BE ALONE',css) 
+
 
