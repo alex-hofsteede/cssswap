@@ -7,10 +7,9 @@ this will be a lot slower
 """
 
 from urlparse import urlparse, urljoin
-from BeautifulSoup import BeautifulSoup, ICantBelieveItsBeautifulSoup, MinimalSoup, BeautifulStoneSoup
-import urllib2
+#from BeautifulSoup import BeautifulSoup, ICantBelieveItsBeautifulSoup, MinimalSoup, BeautifulStoneSoup
+import urllib2, re, time
 from models import Page, CSSAsset, CachedPage
-import re
 from datetime import datetime
 
 from pygments.lexers import HtmlLexer
@@ -19,11 +18,25 @@ from pygments.token import Token, Text, Comment, Operator, Keyword, Name, String
 
 delimiter = '--REPLACE--'
 
+t1 = -1
+def mark(name=None):
+    global t1
+    if t1 == -1:
+        t1 = time.time()
+    else:
+        t2 = time.time()
+        print "%s took %0.3f ms" % (name,(t2-t1) * 1000)
+        t1 = t2
+
+def clear():
+    t1 = -1
+
 def processPage(page_url):
     """
     Main entry point in this class, Grabs a web page given a URL and parses out all the styles, 
     creating classes for each one
     """
+    mark()
     try:
         #Check if urlparse can find a scheme for us, if not, we just put http:// in front
         parsed = urlparse(page_url)
@@ -37,7 +50,7 @@ def processPage(page_url):
         #print "fetched cached page %d" % cached_page.id
     except: #TODO what is the error we are catching? Not Found?
         try:
-            #Check if urlparse can find a scheme for us, if not, we just put http:// in front
+            mark("check cache")
             f =  urllib2.urlopen(page_url) #TODO rate limit this or find some way to stop ourselves from being used as a DOS tool
             page_content = unicode(f.read(),'utf-8')
             #Create a cached page that we can fetch by URL later
@@ -46,6 +59,7 @@ def processPage(page_url):
             cached_page.original = page_content
             cached_page.date = datetime.now()
             cached_page.save()
+            mark("download page")
             #print "saved cached page %d" % cached_page.id
         except urllib2.HTTPError, error:
             raise error
@@ -60,6 +74,9 @@ def processPage(page_url):
     page_content = parseStyleAttributes(page_content, css_assets, page)
     page_content = parseStyleTags(page_content, css_assets, page)
     page_content = parseLinkedStylesheets(page_content, css_assets, page)
+    
+    mark("parse page")
+    clear()
 
     #save all the replacements to the page
     page.raw = page_content
