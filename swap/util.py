@@ -17,9 +17,13 @@ from pygments.token import Token, Text, Comment, Operator, Keyword, Name, String
      Number, Other, Punctuation, Literal
 
 delimiter = '--REPLACE--'
+css_types = {"STYLESHEET":1,"INLINE":2,"ATTRIBUTE":3}
 
 t1 = -1
 def mark(name=None):
+    """
+    Timing function
+    """
     global t1
     if t1 == -1:
         t1 = time.time()
@@ -29,6 +33,7 @@ def mark(name=None):
         t1 = t2
 
 def clear():
+    global t1
     t1 = -1
 
 def processPage(page_url):
@@ -70,12 +75,15 @@ def processPage(page_url):
     page.save()
     css_assets = []
 
+    mark("save page")
     page_content = makeLinksAbsolute(page_content,[u'href',u'src'], page_url)
+    mark("make links absolute")
     page_content = parseStyleAttributes(page_content, css_assets, page)
+    mark("parse style attributes")
     page_content = parseStyleTags(page_content, css_assets, page)
+    mark("parse style tags")
     page_content = parseLinkedStylesheets(page_content, css_assets, page)
-    
-    mark("parse page")
+    mark("parse linked stylesheets")
     clear()
 
     #save all the replacements to the page
@@ -97,7 +105,7 @@ def parseStyleAttributes(document, css_assets, page):
             index,token,value = tokens.next() # get the attribute value
             css_content = value.strip("\"' ")
             css_name = 'style=""'#TODO get the ID attribute from the same tag (could be difficult)
-            css_asset = createCSSAsset(css_content, page, name=css_name)
+            css_asset = createCSSAsset(css_content, page, css_types['ATTRIBUTE'], name=css_name)
             css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
             output_tokens.append('"' + delimiter + css_asset.uuid + delimiter + '"')
     return "".join(output_tokens)
@@ -125,7 +133,7 @@ def parseStyleTags(document, css_assets, page):
             instyle = False
             css_content = "".join(stylesheet_tokens) 
             css_content = makeCSSURLsAbsolute(css_content,page.url)
-            css_asset = createCSSAsset(css_content, page, name='<style/>')
+            css_asset = createCSSAsset(css_content, page, css_types['INLINE'], name='<style/>')
             css_assets.append(css_asset)
             parseNestedStylesheets(css_asset, css_assets, page)
             output_tokens.append( delimiter + css_asset.uuid + delimiter )
@@ -156,7 +164,7 @@ def parseLinkedStylesheets(document, css_assets, page):
                 #TODO other exceptions to handle here, like connection refused. 
                 css_content = unicode(f.read(),'utf-8')
                 css_content = makeCSSURLsAbsolute(css_content, css_url)
-                css_asset = createCSSAsset(css_content, page, css_url, css_name)
+                css_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
                 css_assets.append(css_asset)
                 attr_dict['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
                 parseNestedStylesheets(css_asset, css_assets, page)
@@ -183,7 +191,7 @@ def parseNestedStylesheets(css_asset, css_assets, page):
             return match.group(0)
         css_content = unicode(f.read())
         css_content = makeCSSURLsAbsolute(css_content,css_url)
-        css_sub_asset = createCSSAsset(css_content, page, css_url, css_name)
+        css_sub_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
         css_assets.append(css_sub_asset)
         return match.group(1) + u'/css/%s' % css_sub_asset.uuid + match.group(3)
     css_asset.raw = regex.sub(replace,css_asset.raw)
@@ -198,12 +206,12 @@ def scrubCSS(css):
 #TODO we should really just delete all content after an attempted pwn
     return regex.sub('NO PWN, NO PWN, I JUST WANT TO BE ALONE',css) 
 
-
-def createCSSAsset(content,page,url='',name=''):
+def createCSSAsset(content,page,type,url='',name=''):
     """
     Creates a CSSAsset class from the given values
     """
     css_asset = CSSAsset.create()
+    css_asset.type = type
     css_asset.url = url
     css_asset.original = content
     css_asset.raw = content

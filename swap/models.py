@@ -25,6 +25,7 @@ class CSSAsset(models.Model):
        return CSSAsset(uuid=uuid.uuid4().hex[:8])
 
     uuid = models.CharField(max_length=8)
+    type = models.IntegerField()
     name = models.CharField(max_length=256)
     url = models.CharField(max_length=1024)
     original = models.TextField()
