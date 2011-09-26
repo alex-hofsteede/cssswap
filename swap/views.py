@@ -29,8 +29,9 @@ def getCSS(request,uuid):
 #TODO protect with token in cookie (that gets generated in getpage). Don't want to allow anyone to edit pages, only the person that originally got it
 def editpage(request,page_id):
     page = Page.objects.get(pk=page_id) #TODO use uuids
-    stylesheets = CSSAsset.objects.filter(page=page.id)
-    return render_to_response('edit.html', {'page':page,'stylesheets':stylesheets}, context_instance=RequestContext(request))
+    stylesheets = CSSAsset.objects.filter(page=page.id,type__in=[util.css_types["STYLESHEET"],util.css_types["INLINE"]])
+    styleattributes = CSSAsset.objects.filter(page=page.id,type__in=[util.css_types["ATTRIBUTE"]])
+    return render_to_response('edit.html', {'page':page,'stylesheets':stylesheets,'styleattributes':styleattributes}, context_instance=RequestContext(request))
 
 #TODO move util functions like this out of views. 
 def getCSSByUUID(uuid):

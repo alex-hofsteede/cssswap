@@ -73,16 +73,17 @@ def processPage(page_url):
     page.url = page_url
     page.original = page_content
     page.save()
-    css_assets = []
+    css_stylesheets = []
+    css_tags = []
 
     mark("save page")
     page_content = makeLinksAbsolute(page_content,[u'href',u'src'], page_url)
     mark("make links absolute")
-    page_content = parseStyleAttributes(page_content, css_assets, page)
+    page_content = parseStyleAttributes(page_content, css_stylesheets, page)
     mark("parse style attributes")
-    page_content = parseStyleTags(page_content, css_assets, page)
+    page_content = parseStyleTags(page_content, css_stylesheets, page)
     mark("parse style tags")
-    page_content = parseLinkedStylesheets(page_content, css_assets, page)
+    page_content = parseLinkedStylesheets(page_content, css_stylesheets, page)
     mark("parse linked stylesheets")
     clear()
 
@@ -91,7 +92,7 @@ def processPage(page_url):
     page.save()
     return page
 
-def parseStyleAttributes(document, css_assets, page):
+def parseStyleAttributes(document, css_stylesheets, page):
     """
     Grabs any style="" attributes on normal html tags and saves the CSS therein.
     Replaces the style with a delimited UUID tag that we can use later to re-insert the style
@@ -106,11 +107,11 @@ def parseStyleAttributes(document, css_assets, page):
             css_content = value.strip("\"' ")
             css_name = 'style=""'#TODO get the ID attribute from the same tag (could be difficult)
             css_asset = createCSSAsset(css_content, page, css_types['ATTRIBUTE'], name=css_name)
-            css_assets.append(css_asset)#TODO css_assets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
+            css_stylesheets.append(css_asset)#TODO css_stylesheets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
             output_tokens.append('"' + delimiter + css_asset.uuid + delimiter + '"')
     return "".join(output_tokens)
 
-def parseStyleTags(document, css_assets, page):
+def parseStyleTags(document, css_stylesheets, page):
     """
     Grabs any <style> tags and saves the CSS therein. replaces with a
     uuid that we can use later to re-insert the style. 
@@ -134,15 +135,15 @@ def parseStyleTags(document, css_assets, page):
             css_content = "".join(stylesheet_tokens) 
             css_content = makeCSSURLsAbsolute(css_content,page.url)
             css_asset = createCSSAsset(css_content, page, css_types['INLINE'], name='<style/>')
-            css_assets.append(css_asset)
-            parseNestedStylesheets(css_asset, css_assets, page)
+            css_stylesheets.append(css_asset)
+            parseNestedStylesheets(css_asset, css_stylesheets, page)
             output_tokens.append( delimiter + css_asset.uuid + delimiter )
             output_tokens.append(value)
         elif instyle:
             stylesheet_tokens.append(value)
     return "".join(output_tokens)
 
-def parseLinkedStylesheets(document, css_assets, page):
+def parseLinkedStylesheets(document, css_stylesheets, page):
     """
     Grabs any <link> tags that point to stylesheets, downloads and saves the 
     linked stylesheet, and replaces the link to our own saved version
@@ -165,14 +166,14 @@ def parseLinkedStylesheets(document, css_assets, page):
                 css_content = unicode(f.read(),'utf-8')
                 css_content = makeCSSURLsAbsolute(css_content, css_url)
                 css_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
-                css_assets.append(css_asset)
+                css_stylesheets.append(css_asset)
                 attr_dict['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
-                parseNestedStylesheets(css_asset, css_assets, page)
+                parseNestedStylesheets(css_asset, css_stylesheets, page)
             output_tokens.append(" " + serializeTagAttributes(attr_dict) + " ")
             output_tokens.append(close_tag)
     return "".join(output_tokens)
 
-def parseNestedStylesheets(css_asset, css_assets, page):
+def parseNestedStylesheets(css_asset, css_stylesheets, page):
     """
     Looks through a CSS stylesheet for any @import tags and downloads the imported stylesheets, 
     replacing their reference in the parent stylesheet with the link to our own saves version
@@ -192,7 +193,7 @@ def parseNestedStylesheets(css_asset, css_assets, page):
         css_content = unicode(f.read())
         css_content = makeCSSURLsAbsolute(css_content,css_url)
         css_sub_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
-        css_assets.append(css_sub_asset)
+        css_stylesheets.append(css_sub_asset)
         return match.group(1) + u'/css/%s' % css_sub_asset.uuid + match.group(3)
     css_asset.raw = regex.sub(replace,css_asset.raw)
     css_asset.save()

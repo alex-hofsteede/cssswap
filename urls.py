@@ -1,10 +1,11 @@
 from django.conf.urls.defaults import patterns, include, url
 import swap
 from swap import views
+from django.contrib import admin
 
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
-# admin.autodiscover()
+admin.autodiscover()
 
 urlpatterns = patterns('',
     # Examples:
@@ -23,5 +24,5 @@ urlpatterns = patterns('',
     #get CSS by UUID
     url(r'^css/(?P<uuid>[0-f]+)/?', swap.views.getCSS),
     # Uncomment the next line to enable the admin:
-    # url(r'^admin/', include(admin.site.urls)),
+    url(r'^admin/', include(admin.site.urls)),
 )

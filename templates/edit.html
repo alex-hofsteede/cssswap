@@ -14,6 +14,12 @@
       <textarea name="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
     </div>
     {% endfor %}
+
+    <div id="tabs-attributes">
+      {% for styleattribute in styleattributes %}
+      <textarea name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
+      {% endfor %}
+    </div>
   </div>
   <input name="submit" value="Save" type="submit"></input>
 </form>
