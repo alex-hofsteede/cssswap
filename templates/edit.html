@@ -11,13 +11,13 @@
     </ul>
     {% for stylesheet in stylesheets %}
     <div id="tabs-{{stylesheet.id}}">
-      <textarea name="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
+      <textarea class="styleSheet" name="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
     </div>
     {% endfor %}
 
     <div id="tabs-attributes">
       {% for styleattribute in styleattributes %}
-      <textarea name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
+      <textarea class="styleAttribute" name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
       {% endfor %}
     </div>
   </div>

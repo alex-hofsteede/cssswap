@@ -2,9 +2,14 @@
   margin: 10px;
 }
 
-#edit-css-form textarea {
+#edit-css-form textarea.styleSheet {
   width: 100%;
   height: 600px;
+}
+
+#edit-css-form textarea.styleAttribute {
+  width: 100%;
+  height: 25px;
 }
 
 #edit-tabs ul,

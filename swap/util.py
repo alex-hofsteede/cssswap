@@ -176,7 +176,7 @@ def parseLinkedStylesheets(document, css_stylesheets, page):
 def parseNestedStylesheets(css_asset, css_stylesheets, page):
     """
     Looks through a CSS stylesheet for any @import tags and downloads the imported stylesheets, 
-    replacing their reference in the parent stylesheet with the link to our own saves version
+    replacing their reference in the parent stylesheet with the link to our own saved version
     """
     #Group(1) is everything between the @import and the actual URL,
     #group(2) is the URL, and group(3) is any trailing characers
