@@ -1,9 +1,6 @@
 """
-This is an updated version of the HTML parsing logic that uses a simple HTML Lexer (tokenizer) to step through the
-HTML and make all the modifications we need. The plus side is we don't have a full blown parser that makes all kinds
-of changes to our HTML (closing tags etc.) that we don't want. We only alter the parts that we need, and everything
-else is untouched. The bad part is, we have to make numerous passes through the HTML to get all the info we need, so
-this will be a lot slower 
+This is another updated version of the parsing logic using the lxml.html parser which has a lot of nice things we
+need/want
 """
 
 from urlparse import urlparse, urljoin
@@ -12,12 +9,11 @@ import urllib2, re, time
 from models import Page, CSSAsset, CachedPage
 from datetime import datetime
 
-from pygments.lexers import HtmlLexer
-from pygments.token import Token, Text, Comment, Operator, Keyword, Name, String, \
-     Number, Other, Punctuation, Literal
+import lxml.html
 
 delimiter = '--REPLACE--'
 css_types = {"STYLESHEET":1,"INLINE":2,"ATTRIBUTE":3}
+re_namespace = "http://exslt.org/regular-expressions"
 
 t1 = -1
 def mark(name=None):
@@ -75,103 +71,73 @@ def processPage(page_url):
     page.save()
     css_stylesheets = []
     css_tags = []
+    
+    doc_tree = lxml.html.document_fromstring(page_content).getroottree()
 
     mark("save page")
-    page_content = makeLinksAbsolute(page_content,[u'href',u'src'], page_url)
+    makeLinksAbsolute(doc_tree, page_url)
     mark("make links absolute")
-    page_content = parseStyleAttributes(page_content, css_stylesheets, page)
+    parseStyleAttributes(doc_tree, css_tags, page)
     mark("parse style attributes")
-    page_content = parseStyleTags(page_content, css_stylesheets, page)
+    parseStyleTags(doc_tree, css_stylesheets, page)
     mark("parse style tags")
-    page_content = parseLinkedStylesheets(page_content, css_stylesheets, page)
+    parseLinkedStylesheets(doc_tree, css_stylesheets, page)
     mark("parse linked stylesheets")
     clear()
 
     #save all the replacements to the page
-    page.raw = page_content
+    page.raw = lxml.html.tostring(doc_tree)
     page.save()
     return page
 
-def parseStyleAttributes(document, css_stylesheets, page):
+def parseStyleAttributes(doc_tree, css_tags, page):
     """
     Grabs any style="" attributes on normal html tags and saves the CSS therein.
     Replaces the style with a delimited UUID tag that we can use later to re-insert the style
     """
-    attr_regex = re.compile(r'style\s*=',re.I)
-    output_tokens = []
-    tokens = HtmlLexer().get_tokens_unprocessed(document)
-    for index,token,value in tokens:
-        output_tokens.append(value)
-        if token == Token.Name.Attribute and attr_regex.match(value):
-            index,token,value = tokens.next() # get the attribute value
-            css_content = value.strip("\"' ")
-            css_name = 'style=""'#TODO get the ID attribute from the same tag (could be difficult)
-            css_asset = createCSSAsset(css_content, page, css_types['ATTRIBUTE'], name=css_name)
-            css_stylesheets.append(css_asset)#TODO css_stylesheets is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
-            output_tokens.append('"' + delimiter + css_asset.uuid + delimiter + '"')
-    return "".join(output_tokens)
-
-def parseStyleTags(document, css_stylesheets, page):
+    tags = doc_tree.xpath('//*[@style]') #TODO check this xpath expression, and check that it handles all the spacing variants style = style=' etc. 
+    for tag in tags:
+        css_content = tag.attrib['style'].strip(" ")
+        css_name = getPath(tag) 
+        css_asset = createCSSAsset(css_content, page, css_types['ATTRIBUTE'], name=css_name)
+        css_tags.append(css_asset)#TODO css_tags is not necessary anymore but perhape we can save cycles by passing it diretly to editpage instead of having to get that all from the DB again
+        tag.attrib['style'] = delimiter + css_asset.uuid + delimiter 
+    
+def parseStyleTags(doc_tree, css_stylesheets, page):
     """
     Grabs any <style> tags and saves the CSS therein. replaces with a
     uuid that we can use later to re-insert the style. 
     """
-    output_tokens = []
-    tokens = HtmlLexer().get_tokens_unprocessed(document)
-    intag = False
-    instyle = False
-    for index,token,value in tokens:
-        if not instyle:
-            output_tokens.append(value)
+    tags = doc_tree.xpath('//style')#TODO there was an issue here with a double nested style tag, how can we get only the inner one?
+    for tag in tags:
+        css_content = tag.text_content()
+        css_asset = createCSSAsset(css_content, page, css_types['INLINE'], name='<style/>')
+        css_stylesheets.append(css_asset)
+        parseNestedStylesheets(css_asset, css_stylesheets, page)
+        tag.text = delimiter + css_asset.uuid + delimiter 
 
-        if not intag and token == Token.Name.Tag and re.match(r'<\s*style\s*',value):
-            intag = True
-        elif intag and token == Token.Name.Tag and re.match(r'\s*>',value):
-            intag = False
-            instyle = True
-            stylesheet_tokens = []
-        elif instyle and token == Token.Name.Tag and re.match(r'<\s*/\s*style\s*>',value):
-            instyle = False
-            css_content = "".join(stylesheet_tokens) 
-            css_content = makeCSSURLsAbsolute(css_content,page.url)
-            css_asset = createCSSAsset(css_content, page, css_types['INLINE'], name='<style/>')
-            css_stylesheets.append(css_asset)
-            parseNestedStylesheets(css_asset, css_stylesheets, page)
-            output_tokens.append( delimiter + css_asset.uuid + delimiter )
-            output_tokens.append(value)
-        elif instyle:
-            stylesheet_tokens.append(value)
-    return "".join(output_tokens)
-
-def parseLinkedStylesheets(document, css_stylesheets, page):
+def parseLinkedStylesheets(doc_tree, css_stylesheets, page):
     """
     Grabs any <link> tags that point to stylesheets, downloads and saves the 
     linked stylesheet, and replaces the link to our own saved version
     """
-    output_tokens = []
-    tokens = HtmlLexer().get_tokens_unprocessed(document)
-    tag_regex = re.compile(r'<\s*link',re.I)
-    for index,token,value in tokens:
-        output_tokens.append(value)
-        if token == Token.Name.Tag and tag_regex.match(value):
-            attr_dict,close_tag = parseTagAttributes(tokens)
-            if 'href' in attr_dict and attr_dict['href'] and 'rel' in attr_dict and attr_dict['rel'] and attr_dict['rel'].lower() == 'stylesheet':
-                css_url = attr_dict['href']
-                css_name = urlparse(css_url).path 
-                try:
-                    f = urllib2.urlopen(css_url)
-                except urllib2.HTTPError, error:
-                    continue
-                #TODO other exceptions to handle here, like connection refused. 
-                css_content = unicode(f.read(),'utf-8')
-                css_content = makeCSSURLsAbsolute(css_content, css_url)
-                css_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
-                css_stylesheets.append(css_asset)
-                attr_dict['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
-                parseNestedStylesheets(css_asset, css_stylesheets, page)
-            output_tokens.append(" " + serializeTagAttributes(attr_dict) + " ")
-            output_tokens.append(close_tag)
-    return "".join(output_tokens)
+    tags = doc_tree.xpath('//link[re:test(@rel, "^stylesheet$", "i") and @href]',namespaces={'re':re_namespace})
+    for tag in tags:
+        css_url = tag.attrib['href']
+        css_name = urlparse(css_url).path 
+        try:
+            f = urllib2.urlopen(css_url)
+        except urllib2.HTTPError, error:
+            print "Failed to open stylesheet at %s" % css_url
+            continue
+        #TODO other exceptions to handle here, like connection refused. 
+        css_content = unicode(f.read(),'utf-8')
+        css_content = makeCSSURLsAbsolute(css_content, css_url)
+        css_asset = createCSSAsset(css_content, page, css_types['STYLESHEET'], css_url, css_name)
+        css_stylesheets.append(css_asset)
+        tag.attrib['href'] = u'/css/%s' % css_asset.uuid #No need to save a delimited value to regex out later. the link to /css/{uuid} will be constant
+        parseNestedStylesheets(css_asset, css_stylesheets, page)
+    
 
 def parseNestedStylesheets(css_asset, css_stylesheets, page):
     """
@@ -189,6 +155,7 @@ def parseNestedStylesheets(css_asset, css_stylesheets, page):
         try:
             f = urllib2.urlopen(css_url)
         except urllib2.HTTPError, error:
+            print "Failed to open stylesheet at %s" % css_url
             return match.group(0)
         css_content = unicode(f.read())
         css_content = makeCSSURLsAbsolute(css_content,css_url)
@@ -203,8 +170,9 @@ def scrubCSS(css):
     Makes sure CSS doesn't contain any strings that might allow us to get pwned. 
     like closing the style and setting a script tag
     """
-    regex = re.compile(r'<\s*/?')
+    regex = re.compile(r'<\s*/?style',re.I)
 #TODO we should really just delete all content after an attempted pwn
+#or at least match and remove the whole tag
     return regex.sub('NO PWN, NO PWN, I JUST WANT TO BE ALONE',css) 
 
 def createCSSAsset(content,page,type,url='',name=''):
@@ -221,22 +189,12 @@ def createCSSAsset(content,page,type,url='',name=''):
     css_asset.save()
     return css_asset 
 
-def makeLinksAbsolute(document, attrs, root_url):
+def makeLinksAbsolute(doc_tree,base_href):
     """
-    Looks through document for tags with attributes in attrs, and uses urljoin to make those
-    attribute values into absolute URLs.
+    Makes all links in the document absolute using base_href
     """
-    if type(attrs) is str:
-        attrs = [attrs]
-    attr_regex = re.compile('|'.join(attrs)+r'\s*=',re.I)
-    output_tokens = []
-    tokens = HtmlLexer().get_tokens_unprocessed(document)
-    for index,token,value in tokens:
-        output_tokens.append(value)
-        if token == Token.Name.Attribute and attr_regex.match(value):
-            index,token,value = tokens.next() # get the attribute value
-            output_tokens.append('"'+urljoin(root_url,value.strip("\"' "))+'"')
-    return u''.join(output_tokens)
+    #TODO, this also rewrites all links in css, but we still probably need makeCSSURLsAbsolute for seperate css files
+    doc_tree.getroot().make_links_absolute(base_href,True);#TODO do we want to use the resolve_base?
 
 def makeCSSURLsAbsolute(css_content,root_url):
     """
@@ -250,33 +208,9 @@ def makeCSSURLsAbsolute(css_content,root_url):
         return match.group(1) + unicode(urljoin(root_url,match.group(2))) + match.group(3)
     return regex.sub(replace,css_content)
 
-def parseTagAttributes(tokens):
-    """
-    This is the first step to building a full parser from our lexer, while in an HTML tag, this function saves
-    all attributes and their values into a dictionary, until we reach the end of the tag. It returns the attribute
-    dictionary and the closing tag. Tokens is an iterator produced by the lexer whose current position should be at 
-    the beginning of a tag, having just consumed the tag name. 
-    """
-    attr_dict = {}
-    attr_regex = re.compile(r'([a-zA-Z0-9_:-]+)(\s*=)?')
-    end_regex = re.compile(r'(/?\s*>)')
-    for index,token,value in tokens:
-        if token == Token.Name.Attribute :
-            attr_match = attr_regex.match(value)
-            if attr_match.group(2):
-                index,token,value = tokens.next() # get the attribute value
-                attr_dict[attr_match.group(1).lower()] = value.strip("\"' ")
-            else:
-                attr_dict[attr_match.group(1).lower()] = None
-        elif token != Token.Name.Attribute:
-            close_match = end_regex.match(value)
-            if close_match:
-                return (attr_dict,close_match.group(1))
-
-def serializeTagAttributes(attr_dict):
-    """
-    Takes an attribute dictionary produced by parseTagAttributes, and returns the HTML string representation
-    of those attributes
-    """
-    return " ".join(k + (('="' + v + '"') if v != None else '') for k,v in attr_dict.iteritems())
-
+def getPath(element):
+    path = ""
+    while element != None:
+        path = "#%s > %s" % (element.get('id','!'),path)
+        element = element.getparent()
+    return path

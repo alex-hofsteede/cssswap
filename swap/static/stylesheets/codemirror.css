@@ -5,6 +5,10 @@
   font-family: monospace;
 }
 
+#tabs-attributes > .CodeMirror {
+  height:25px;
+}
+
 .CodeMirror-gutter {
   position: absolute; left: 0; top: 0;
   background-color: #f7f7f7;

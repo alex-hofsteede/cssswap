@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 {% block content %}
+<script type="text/javascript">
+delimiter = "{{delimiter}}";
+
+function preview(){
+    var html = '<html/>'//get page html
+    var rex = new RegExp(delimiter+'([0-f]+)'+delimiter,'gi');
+    html = html.replace(rex,function(stt,p1,offset){
+        return $('cssasset_'+p1).text;
+    });
+    //create new iframe and load html in
+}
+</script>
 <h2>Edit CSS</h2>
 <form id="edit-css-form" name="input" action="/savepage/{{page.id}}" method="POST">
   {% csrf_token %}
@@ -8,6 +20,9 @@
       {% for stylesheet in stylesheets %}
       <li><a href="#tabs-{{stylesheet.id}}">{{stylesheet.name}}</a></li>
       {% endfor %}
+      {% if styleattributes|length != 0 %}
+      <li><a href="#tabs-attributes">Attributes</a></li>
+      {% endif %}
     </ul>
     {% for stylesheet in stylesheets %}
     <div id="tabs-{{stylesheet.id}}">
@@ -17,7 +32,8 @@
 
     <div id="tabs-attributes">
       {% for styleattribute in styleattributes %}
-      <textarea class="styleAttribute" name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
+      <span>{{styleattribute.name}}</span>
+        <textarea class="styleAttribute" name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
       {% endfor %}
     </div>
   </div>

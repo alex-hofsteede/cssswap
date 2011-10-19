@@ -4,8 +4,10 @@ $(function() {
   $( "#edit-tabs" ).tabs({
     show: function(event,ui) {
       if($(ui.panel).find('.CodeMirror').length == 0) {
-        var editor = CodeMirror.fromTextArea($(ui.panel).find('textarea')[0])
-        window.editors.push(editor);
+        $(ui.panel).find('textarea').each(function(index,item){
+            var editor = CodeMirror.fromTextArea(item)
+            window.editors.push(editor);
+        });
       }
     }
   });

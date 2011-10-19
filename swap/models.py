@@ -19,6 +19,9 @@ class Page(models.Model):
     original = models.TextField()
     raw = models.TextField()
 
+    def __unicode__(self):
+        return '%s - %s' % (unicode(self.uuid),unicode(self.url))
+
 class CSSAsset(models.Model):
     @classmethod
     def create(cls):
@@ -31,3 +34,6 @@ class CSSAsset(models.Model):
     original = models.TextField()
     raw = models.TextField()
     page = models.ForeignKey(Page)
+
+    def __unicode__(self):
+        return '%s - %s' % (unicode(self.uuid),unicode(self.url))

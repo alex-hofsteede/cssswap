@@ -1,3 +1,7 @@
+body {
+    background: url("/static/bright_squares.png");
+}
+
 #content {
   margin: 10px;
 }
