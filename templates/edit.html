@@ -5,7 +5,7 @@ delimiter = "{{delimiter}}";
 pageId = "{{page.id}}";
 
 $(function(){
-    $.ajax("/rawpage/"+pageId, function(result) { 
+    $.get("/rawpage/"+pageId, function(result) { 
         pageHtml = result
     });
 });
@@ -14,7 +14,8 @@ function preview(){
     var html = pageHtml;
     var rex = new RegExp(delimiter+'([0-f]+)'+delimiter,'gi');
     html = html.replace(rex,function(stt,p1,offset){
-        return $('cssasset_'+p1).text;
+        var css =  $('#cssasset_'+p1).text();
+        return css;
     });
 
     $("#preview").remove();
@@ -42,14 +43,14 @@ function preview(){
     </ul>
     {% for stylesheet in stylesheets %}
     <div id="tabs-{{stylesheet.id}}">
-      <textarea class="styleSheet" name="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
+      <textarea class="styleSheet" name="cssasset_{{stylesheet.uuid}}" id="cssasset_{{stylesheet.uuid}}">{{stylesheet.raw}}</textarea>
     </div>
     {% endfor %}
 
     <div id="tabs-attributes">
       {% for styleattribute in styleattributes %}
       <span>{{styleattribute.name}}</span>
-        <textarea class="styleAttribute" name="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
+        <textarea class="styleAttribute" name="cssasset_{{styleattribute.uuid}}" id="cssasset_{{styleattribute.uuid}}">{{styleattribute.raw}}</textarea>
       {% endfor %}
     </div>
   </div>
