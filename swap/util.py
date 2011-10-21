@@ -179,7 +179,7 @@ def scrubCSS(css):
     """
     regex = re.compile(r'<\s*/?')
 #TODO we should really just delete all content after an attempted pwn
-    return regex.sub('NO PWN, NO PWN, I JUST WANT TO BE ALONE',css) 
+    return regex.sub('No HTML tags thanks',css) 
 
 
 def createCSSAsset(content,page,url='',name=''):
@@ -254,3 +254,10 @@ def serializeTagAttributes(attr_dict):
     """
     return " ".join(k + (('="' + v + '"') if v != None else '') for k,v in attr_dict.iteritems())
 
+def regenerateHTML(html_with_tokens,replacements):
+    """
+    Takes an HTML string with the delimited tokens we added, and merges the data from the
+    replacements where replacements is a dict of {uuid:css_string}
+    """
+    return re.sub(delimiter+r'([0-f]+)'+delimiter,lambda match: replacements.get(match.group(1),''),html_with_tokens)
+    

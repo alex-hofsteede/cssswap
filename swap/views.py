@@ -50,9 +50,26 @@ def savepage(request,page_id):
                     css_asset.save()
     return redirect("/showpage/%s" % page_id)
 
+def previewpage(request,page_id):
+    """
+    Echoes the CSS sent in the post request, merged into the HTML document
+    without saving any of it
+    """
+    if request.method == 'POST':
+        page = get_object_or_404(Page,pk=page_id)
+        preview_css = {}
+        for key,value in request.POST.items():
+            match = re.search(r'cssasset_([0-f]+)',key)
+            if match:
+                preview_css[match.group(1)] = util.scrubCSS(value)
+        html = util.regenerateHTML(page.raw,preview_css)
+    return HttpResponse(html)
+
 def showpage(request,page_id):
     page = get_object_or_404(Page,pk=page_id)
-    def replacementText(match):
-        return getCSSByUUID(match.group(1)).raw
-    html = re.sub(util.delimiter+r'([0-f]+)'+util.delimiter,replacementText,page.raw)
+    page_css = CSSAsset.objects.filter(page=page_id)
+    render_css = {}#TODO a more pythonic way of doing this?
+    for css in page_css:
+        render_css[css.uuid] = css.raw
+    html = util.regenerateHTML(page.raw,render_css)
     return HttpResponse(html)

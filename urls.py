@@ -18,6 +18,7 @@ urlpatterns = patterns('',
     url(r'^getpage/?$', swap.views.getpage),
     url(r'^editpage/(?P<page_id>\d+)/?', swap.views.editpage),
     url(r'^savepage/(?P<page_id>\d+)/?', swap.views.savepage),
+    url(r'^previewpage/(?P<page_id>\d+)/?', swap.views.previewpage),
     url(r'^showpage/(?P<page_id>\d+)/?', swap.views.showpage),
 
     #get CSS by UUID
