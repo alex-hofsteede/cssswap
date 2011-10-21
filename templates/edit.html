@@ -2,14 +2,30 @@
 {% block content %}
 <script type="text/javascript">
 delimiter = "{{delimiter}}";
+pageId = "{{page.id}}";
+
+$(function(){
+    $.ajax("/rawpage/"+pageId, function(result) { 
+        pageHtml = result
+    });
+});
 
 function preview(){
-    var html = '<html/>'//get page html
+    var html = pageHtml;
     var rex = new RegExp(delimiter+'([0-f]+)'+delimiter,'gi');
     html = html.replace(rex,function(stt,p1,offset){
         return $('cssasset_'+p1).text;
     });
-    //create new iframe and load html in
+
+    $("#preview").remove();
+    var iframe = $("<iframe/>").attr('id','preview');
+    $("#content").append(iframe);
+    var doc = iframe[0].document;
+    if(doc == undefined)
+        doc = iframe[0].contentDocument;
+    doc.open();
+    doc.writeln(html);
+    doc.close();
 }
 </script>
 <h2>Edit CSS</h2>

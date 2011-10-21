@@ -26,8 +26,8 @@ def getCSS(request,uuid):
     css = get_object_or_404(CSSAsset,uuid=uuid)
     return HttpResponse(css.raw,mimetype='text/css')
 
-def getHTML(request,uuid):
-    page = get_object_or_404(Page,uuid=uuid)
+def rawpage(request,page_id):
+    page = get_object_or_404(Page,pk=page_id)
     return HttpResponse(page.raw,mimetype='text/html');
 
 #TODO protect with token in cookie (that gets generated in getpage). Don't want to allow anyone to edit pages, only the person that originally got it

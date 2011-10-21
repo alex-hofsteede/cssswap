@@ -6,9 +6,14 @@ body {
   margin: 10px;
 }
 
+#edit-css-form {
+  width:500px;
+  height:100%;
+}
+
 #edit-css-form textarea.styleSheet {
   width: 100%;
-  height: 600px;
+  height: 100%;
 }
 
 #edit-css-form textarea.styleAttribute {
