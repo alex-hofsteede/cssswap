@@ -30,3 +30,4 @@ class CSSAsset(models.Model):
     original = models.TextField()
     raw = models.TextField()
     page = models.ForeignKey(Page)
+    type = models.IntegerField(default=0)

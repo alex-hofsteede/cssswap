@@ -10,7 +10,6 @@ import urllib2
 def index(request):
     return render_to_response('index.html',{}, context_instance=RequestContext(request))
 
-
 def getpage(request):
     if request.method == 'POST':
         page_url = request.POST['url']
@@ -73,3 +72,9 @@ def showpage(request,page_id):
         render_css[css.uuid] = css.raw
     html = util.regenerateHTML(page.raw,render_css)
     return HttpResponse(html)
+
+def rawpage(request,page_id):
+    page = get_object_or_404(Page,pk=page_id)
+    return HttpResponse(page.raw)
+
+    

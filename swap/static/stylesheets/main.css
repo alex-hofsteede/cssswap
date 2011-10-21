@@ -3,11 +3,16 @@
 }
 
 #edit-css-form textarea {
-  width: 100%;
-  height: 600px;
+  width: 500px;
+  height: 100%;
 }
 
 #edit-tabs ul,
 #edit-tabs textarea {
   font-size: 12px;
+}
+
+iframe{
+    width:100%;
+    height:100%;
 }

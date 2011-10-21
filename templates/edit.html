@@ -15,7 +15,8 @@
     </div>
     {% endfor %}
   </div>
-  <input name="submit" value="Save" type="submit" onclick="this.form.action = '/savepage/{{page.id}}'; return true;"></input>
-  <input name="preview" value="Preview" type="submit" onclick="this.form.action = '/previewpage/{{page.id}}'; return true;"></input>
+  <input name="submit" value="Save" type="submit"></input>
+  <!--<input name="preview" value="Preview" type="submit" onclick="this.form.action = '/previewpage/{{page.id}}'; return true;"></input>-->
 </form>
+  <button onclick="newPreview('/rawpage/{{page.id}}');">Preview</button>
 {% endblock %}
